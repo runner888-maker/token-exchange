@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-surface text-white;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-1;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-3 rounded-full;
+  }
+}
+
+@layer utilities {
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+}
+
+/* Animated gradient border for active nodes */
+@keyframes border-spin {
+  to { --angle: 360deg; }
+}
+
+/* Flow animation for diagram arrows */
+@keyframes flow {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.flow-arrow {
+  stroke-dasharray: 6 4;
+  animation: flow 0.8s linear infinite;
+}
+
+/* Pulse glow for active nodes */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px 0 rgba(124, 58, 237, 0.4); }
+  50% { box-shadow: 0 0 20px 4px rgba(124, 58, 237, 0.7); }
+}
+
+.glow-active {
+  animation: glow-pulse 2s ease-in-out infinite;
+}

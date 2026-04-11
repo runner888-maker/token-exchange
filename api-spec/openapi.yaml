@@ -1,0 +1,365 @@
+openapi: "3.1.0"
+
+info:
+  title: Token Exchange API
+  version: "0.1.0"
+  description: |
+    A unified AI routing layer that abstracts provider-specific tokens into **credits**
+    and dynamically selects the cheapest, fastest, or highest-quality model across
+    Anthropic (Claude) and OpenAI (GPT).
+
+    ## Key concepts
+
+    - **Credits**: Internal unit of account. 1 credit = $0.0001. Normalizes cost across providers.
+    - **Priority**: The routing hint your app provides — `cost`, `latency`, or `quality`.
+    - **Baseline**: Savings are calculated against always using Claude 3.5 Sonnet.
+    - **Mock mode**: When `MOCK_MODE=true` (or no API keys), responses are simulated with realistic latency.
+
+    ## Quick start
+
+    ```bash
+    # 1. Start backend
+    cd backend && pip install -r requirements.txt
+    cp .env.example .env   # add real API keys or leave empty for mock mode
+    uvicorn app.main:app --reload
+
+    # 2. Start frontend
+    cd frontend && npm install && npm run dev
+    ```
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: completion
+    description: Core AI inference endpoint with intelligent routing
+  - name: stats
+    description: Usage analytics and request logs
+  - name: health
+    description: Service health check
+
+paths:
+  /v1/completion:
+    post:
+      operationId: createCompletion
+      tags: [completion]
+      summary: Route a completion request
+      description: |
+        The primary endpoint. Provide a prompt and a priority hint; the routing
+        engine selects the optimal provider + model, executes inference, and returns
+        the response alongside full cost, credit, and savings metadata.
+
+        **Priority strategies:**
+        - `cost` → Cheapest model per token (typically `gpt-4o-mini`)
+        - `latency` → Fastest responding model (uses rolling avg latency; falls back to tier)
+        - `quality` → Highest quality score (typically `claude-3-opus-20240229`)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompletionRequest"
+            examples:
+              cost_priority:
+                summary: Optimize for cost
+                value:
+                  prompt: "Explain quantum computing in one paragraph."
+                  priority: "cost"
+                  max_tokens: 256
+              quality_priority:
+                summary: Optimize for quality
+                value:
+                  prompt: "Write a detailed analysis of the CAP theorem."
+                  priority: "quality"
+                  max_tokens: 1024
+              with_system:
+                summary: With system prompt
+                value:
+                  prompt: "Summarize this for a 5-year-old."
+                  priority: "latency"
+                  max_tokens: 128
+                  system: "You are a friendly teacher who explains complex ideas simply."
+      responses:
+        "200":
+          description: Successful completion with routing metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompletionResponse"
+        "400":
+          description: Invalid priority value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Aggregate usage statistics
+      description: |
+        Returns aggregate metrics across all requests. Used to power the dashboard.
+        Includes total spend, credits, savings vs baseline, and provider/priority breakdowns.
+      responses:
+        "200":
+          description: Aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+
+  /v1/requests:
+    get:
+      operationId: listRequests
+      tags: [stats]
+      summary: Recent request log
+      description: Returns requests ordered by most recent first. Supports filtering.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Maximum number of results to return
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [anthropic, openai]
+          description: Filter by provider
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [cost, latency, quality]
+          description: Filter by routing priority
+      responses:
+        "200":
+          description: List of request records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequestRecord"
+
+  /v1/providers:
+    get:
+      operationId: listProviders
+      tags: [stats]
+      summary: Available providers and model pricing
+      description: |
+        Returns all configured providers and models with static pricing, quality scores,
+        latency tiers, and live rolling average latency from observed traffic.
+      responses:
+        "200":
+          description: Provider and model list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProviderModel"
+
+  /health:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Service health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: token-exchange
+                  version:
+                    type: string
+                    example: "0.1.0"
+
+components:
+  schemas:
+    CompletionRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: The user prompt to complete
+          example: "Explain quantum computing in one paragraph."
+        priority:
+          type: string
+          enum: [cost, latency, quality]
+          default: cost
+          description: Routing priority strategy
+        max_tokens:
+          type: integer
+          default: 1024
+          minimum: 1
+          maximum: 4096
+          description: Maximum tokens in the response
+        system:
+          type: string
+          nullable: true
+          description: Optional system/context message prepended to the conversation
+
+    CompletionResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The model's response text
+        provider:
+          type: string
+          enum: [anthropic, openai]
+          description: Provider that handled the request
+        model:
+          type: string
+          description: Exact model ID used (e.g. "gpt-4o-mini")
+        input_tokens:
+          type: integer
+          description: Tokens consumed from the prompt
+        output_tokens:
+          type: integer
+          description: Tokens generated in the response
+        total_tokens:
+          type: integer
+          description: input_tokens + output_tokens
+        cost_usd:
+          type: number
+          format: float
+          description: Actual cost in USD for this request
+          example: 0.000000015
+        credits:
+          type: number
+          format: float
+          description: Cost expressed as credits (1 credit = $0.0001)
+          example: 0.00015
+        latency_ms:
+          type: number
+          format: float
+          description: Provider response time in milliseconds
+          example: 92.5
+        savings_usd:
+          type: number
+          format: float
+          description: Cost saved compared to always using Claude 3.5 Sonnet baseline
+          example: 0.000000012
+        priority_used:
+          type: string
+          description: The priority strategy that was applied
+        request_id:
+          type: integer
+          description: Database ID for this request record
+
+    RequestRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        provider:
+          type: string
+        model:
+          type: string
+        priority:
+          type: string
+        input_tokens:
+          type: integer
+        output_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+        cost_usd:
+          type: number
+        credits:
+          type: number
+        latency_ms:
+          type: number
+        savings_usd:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+    StatsResponse:
+      type: object
+      properties:
+        total_requests:
+          type: integer
+        total_cost_usd:
+          type: number
+        total_credits:
+          type: number
+        total_savings_usd:
+          type: number
+        savings_percentage:
+          type: number
+          description: Percentage saved vs all-baseline usage
+        avg_latency_ms:
+          type: number
+        total_tokens:
+          type: integer
+        credits_per_dollar:
+          type: integer
+          example: 10000
+        provider_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              provider: { type: string }
+              count: { type: integer }
+              total_cost_usd: { type: number }
+              avg_latency_ms: { type: number }
+              percentage: { type: number }
+        priority_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              priority: { type: string }
+              count: { type: integer }
+
+    ProviderModel:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [anthropic, openai]
+        model:
+          type: string
+        display_name:
+          type: string
+        input_cost_per_1m:
+          type: number
+          description: USD per 1M input tokens
+        output_cost_per_1m:
+          type: number
+          description: USD per 1M output tokens
+        quality_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        latency_tier:
+          type: string
+          enum: [fast, medium, slow]
+        rolling_avg_latency_ms:
+          type: number
+          description: Rolling average latency from live traffic (0 if no data yet)
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "priority must be one of: cost, latency, quality"
