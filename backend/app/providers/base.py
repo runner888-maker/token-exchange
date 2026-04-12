@@ -15,7 +15,7 @@ class ProviderResponse:
 
 class BaseProvider(ABC):
     @abstractmethod
-    async def complete(
+    def complete(
         self,
         prompt: str,
         model: str,

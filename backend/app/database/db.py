@@ -14,8 +14,4 @@ def init_db() -> None:
 
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    return SessionLocal()

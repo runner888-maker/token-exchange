@@ -1,43 +1,26 @@
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 from .database.db import init_db
-from .routers import completion, stats
+from .routers.completion import completion_bp
+from .routers.stats import stats_bp
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
+def create_app() -> Flask:
+    app = Flask(__name__)
+    CORS(app)
+
+    with app.app_context():
+        init_db()
+
+    app.register_blueprint(completion_bp, url_prefix="/v1")
+    app.register_blueprint(stats_bp, url_prefix="/v1")
+
+    @app.get("/health")
+    def health_check():
+        return jsonify({"status": "ok", "service": "token-exchange", "version": "0.1.0"})
+
+    return app
 
 
-app = FastAPI(
-    title="Token Exchange API",
-    description=(
-        "A unified AI routing layer that abstracts provider tokens into credits "
-        "and dynamically selects the cheapest, fastest, or highest-quality model "
-        "across Anthropic and OpenAI."
-    ),
-    version="0.1.0",
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(completion.router, prefix="/v1")
-app.include_router(stats.router, prefix="/v1")
-
-
-@app.get("/health", tags=["health"])
-async def health_check():
-    return {"status": "ok", "service": "token-exchange", "version": "0.1.0"}
+app = create_app()

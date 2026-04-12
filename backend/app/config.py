@@ -1,14 +1,14 @@
-from pydantic_settings import BaseSettings
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-class Settings(BaseSettings):
-    anthropic_api_key: str = ""
-    openai_api_key: str = ""
-    database_url: str = "sqlite:///./token_exchange.db"
-    mock_mode: bool = True  # Use simulated responses when no API keys are set
-
-    class Config:
-        env_file = ".env"
+class Settings:
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./token_exchange.db")
+    mock_mode: bool = os.getenv("MOCK_MODE", "true").lower() == "true"
 
 
 settings = Settings()

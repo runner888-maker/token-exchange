@@ -1,4 +1,3 @@
-import asyncio
 import time
 from typing import Optional
 
@@ -11,9 +10,9 @@ class AnthropicProvider(BaseProvider):
         self.mock = mock or not api_key
         if not self.mock:
             import anthropic
-            self._client = anthropic.AsyncAnthropic(api_key=api_key)
+            self._client = anthropic.Anthropic(api_key=api_key)
 
-    async def complete(
+    def complete(
         self,
         prompt: str,
         model: str,
@@ -21,7 +20,7 @@ class AnthropicProvider(BaseProvider):
         system: Optional[str] = None,
     ) -> ProviderResponse:
         if self.mock:
-            return await self._mock_complete(prompt, model, max_tokens)
+            return self._mock_complete(prompt, model, max_tokens)
 
         kwargs: dict = {
             "model": model,
@@ -32,7 +31,7 @@ class AnthropicProvider(BaseProvider):
             kwargs["system"] = system
 
         start = time.perf_counter()
-        response = await self._client.messages.create(**kwargs)
+        response = self._client.messages.create(**kwargs)
         latency_ms = (time.perf_counter() - start) * 1000
 
         return ProviderResponse(
@@ -44,17 +43,14 @@ class AnthropicProvider(BaseProvider):
             provider="anthropic",
         )
 
-    async def _mock_complete(
-        self, prompt: str, model: str, max_tokens: int
-    ) -> ProviderResponse:
-        # Simulate realistic latency variation per model
+    def _mock_complete(self, prompt: str, model: str, max_tokens: int) -> ProviderResponse:
         latency_map = {
-            "claude-3-5-haiku-20241022": 0.12,
-            "claude-3-5-sonnet-20241022": 0.28,
-            "claude-3-opus-20240229": 0.55,
+            "claude-3-5-haiku-20241022": 120.0,
+            "claude-3-5-sonnet-20241022": 280.0,
+            "claude-3-opus-20240229": 550.0,
         }
-        await asyncio.sleep(latency_map.get(model, 0.20))
-        latency_ms = latency_map.get(model, 0.20) * 1000
+        latency_ms = latency_map.get(model, 200.0)
+        time.sleep(latency_ms / 1000)
 
         input_tokens = max(10, len(prompt.split()) * 4 // 3)
         output = (
