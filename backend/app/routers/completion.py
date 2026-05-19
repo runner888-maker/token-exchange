@@ -5,8 +5,8 @@ from flask import Blueprint, jsonify, request
 from ..config import settings
 from ..database.db import get_db
 from ..database.models import Request
-from ..providers.anthropic_provider import AnthropicProvider
-from ..providers.openai_provider import OpenAIProvider
+from ..providers.xai_provider import XAIProvider
+from ..providers.gemini_provider import GeminiProvider
 from ..routing.engine import route_request, update_latency
 from ..routing.pricing import (
     BASELINE_MODEL,
@@ -18,6 +18,18 @@ from ..routing.pricing import (
 completion_bp = Blueprint("completion", __name__)
 
 VALID_PRIORITIES = {"cost", "latency", "quality"}
+
+
+def _make_provider(provider_name: str):
+    if provider_name == "xai":
+        return XAIProvider(
+            api_key=settings.xai_api_key,
+            mock=settings.mock_mode or not settings.xai_api_key,
+        )
+    return GeminiProvider(
+        api_key=settings.gemini_api_key,
+        mock=settings.mock_mode or not settings.gemini_api_key,
+    )
 
 
 @completion_bp.post("/completion")
@@ -34,26 +46,25 @@ def create_completion():
     if priority not in VALID_PRIORITIES:
         return jsonify({"detail": "priority must be one of: cost, latency, quality"}), 400
 
-    # Route
     provider_name, model = route_request(priority)
+    provider = _make_provider(provider_name)
 
-    # Execute
-    if provider_name == "anthropic":
-        provider = AnthropicProvider(
-            api_key=settings.anthropic_api_key,
-            mock=settings.mock_mode or not settings.anthropic_api_key,
-        )
-    else:
-        provider = OpenAIProvider(
-            api_key=settings.openai_api_key,
-            mock=settings.mock_mode or not settings.openai_api_key,
-        )
-
-    result = provider.complete(prompt=prompt, model=model, max_tokens=max_tokens, system=system)
+    try:
+        result = provider.complete(prompt=prompt, model=model, max_tokens=max_tokens, system=system)
+    except Exception as primary_err:
+        # Fallback: if Gemini fails (quota/billing), use xAI
+        if provider_name != "xai" and settings.xai_api_key:
+            provider_name, model = "xai", "grok-3-mini-beta"
+            provider = _make_provider("xai")
+            try:
+                result = provider.complete(prompt=prompt, model=model, max_tokens=max_tokens, system=system)
+            except Exception as fallback_err:
+                return jsonify({"detail": f"All providers failed. Primary: {primary_err}. Fallback: {fallback_err}"}), 502
+        else:
+            return jsonify({"detail": str(primary_err)}), 502
 
     update_latency(provider_name, model, result.latency_ms)
 
-    # Costs
     cost = calculate_cost(provider_name, model, result.input_tokens, result.output_tokens)
     credits = cost_to_credits(cost)
     baseline_cost = calculate_cost(
@@ -61,7 +72,6 @@ def create_completion():
     )
     savings = baseline_cost - cost
 
-    # Persist
     db = get_db()
     try:
         record = Request(

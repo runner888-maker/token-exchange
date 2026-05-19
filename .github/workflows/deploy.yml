@@ -28,6 +28,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          # Add VITE_API_URL in GitHub → Settings → Secrets → Actions
+          # Value: your Render backend URL, e.g. https://token-exchange-api.onrender.com
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

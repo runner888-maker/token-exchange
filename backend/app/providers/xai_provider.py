@@ -1,0 +1,62 @@
+import time
+from typing import Optional
+
+from .base import BaseProvider, ProviderResponse
+
+XAI_BASE_URL = "https://api.x.ai/v1"
+
+
+class XAIProvider(BaseProvider):
+    def __init__(self, api_key: str = "", mock: bool = False):
+        self.api_key = api_key
+        self.mock = mock or not api_key
+        if not self.mock:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=api_key, base_url=XAI_BASE_URL)
+
+    def complete(
+        self,
+        prompt: str,
+        model: str,
+        max_tokens: int = 1024,
+        system: Optional[str] = None,
+    ) -> ProviderResponse:
+        if self.mock:
+            return self._mock_complete(prompt, model, max_tokens)
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        start = time.perf_counter()
+        response = self._client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+        latency_ms = (time.perf_counter() - start) * 1000
+
+        return ProviderResponse(
+            text=response.choices[0].message.content or "",
+            input_tokens=response.usage.prompt_tokens,
+            output_tokens=response.usage.completion_tokens,
+            latency_ms=round(latency_ms, 2),
+            model=model,
+            provider="xai",
+        )
+
+    def _mock_complete(self, prompt: str, model: str, max_tokens: int) -> ProviderResponse:
+        latency_map = {"grok-3-mini-beta": 120.0, "grok-3-beta": 280.0, "grok-2-1212": 200.0}
+        latency_ms = latency_map.get(model, 180.0)
+        time.sleep(latency_ms / 1000)
+        input_tokens = max(10, len(prompt.split()) * 4 // 3)
+        output = f"[Mock xAI · {model}] Responding to your {len(prompt.split())}-word prompt."
+        return ProviderResponse(
+            text=output,
+            input_tokens=input_tokens,
+            output_tokens=max(10, len(output.split()) * 4 // 3),
+            latency_ms=round(latency_ms, 2),
+            model=model,
+            provider="xai",
+        )

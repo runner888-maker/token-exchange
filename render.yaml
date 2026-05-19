@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: token-exchange-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn "app.main:app" --bind 0.0.0.0:$PORT
+    envVars:
+      - key: XAI_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MOCK_MODE
+        value: "false"
+    autoDeploy: true

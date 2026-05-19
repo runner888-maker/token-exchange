@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
-import Header from './components/Header'
+import Header, { type Tab } from './components/Header'
 import StatsCards from './components/StatsCards'
 import Charts from './components/Charts'
 import RequestLog from './components/RequestLog'
 import SystemDiagram from './components/SystemDiagram'
 import ApiPlayground from './components/ApiPlayground'
 import ApiSpec from './components/ApiSpec'
+import Landing from './pages/Landing'
+import JobSubmit from './pages/JobSubmit'
+import CustomerPortal from './pages/CustomerPortal'
 import type { Stats, RequestLog as RequestLogType } from './types'
 
-type Tab = 'dashboard' | 'diagram' | 'playground' | 'spec'
-
-const API = ''
+// In production (GitHub Pages) this is set to the Render backend URL via VITE_API_URL.
+// In development the Vite proxy handles /v1 and /v2 transparently.
+const API = import.meta.env.VITE_API_URL ?? ''
 
 async function fetchStats(): Promise<Stats> {
   const res = await fetch(`${API}/v1/stats`)
@@ -25,7 +28,7 @@ async function fetchRequests(): Promise<RequestLogType[]> {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const [tab, setTab] = useState<Tab>('home')
   const [stats, setStats] = useState<Stats | null>(null)
   const [requests, setRequests] = useState<RequestLogType[]>([])
   const [loadingRequests, setLoadingRequests] = useState(false)
@@ -53,12 +56,10 @@ export default function App() {
     }
   }, [])
 
-  // Initial load
   useEffect(() => {
     loadData()
   }, [loadData])
 
-  // Poll every 5s when on dashboard
   useEffect(() => {
     if (tab !== 'dashboard') return
     const id = setInterval(loadData, 5000)
@@ -70,7 +71,7 @@ export default function App() {
       <Header activeTab={tab} onTabChange={setTab} />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
-        {backendError && (
+        {backendError && tab !== 'home' && (
           <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-800/40 rounded-lg text-yellow-400 text-sm flex items-center gap-2">
             <span>⚠</span>
             <span>
@@ -80,6 +81,10 @@ export default function App() {
             </span>
           </div>
         )}
+
+        {tab === 'home' && <Landing onNavigate={(t) => setTab(t as Tab)} />}
+        {tab === 'submit' && <JobSubmit />}
+        {tab === 'portal' && <CustomerPortal />}
 
         {tab === 'dashboard' && (
           <div className="space-y-6">
@@ -93,16 +98,13 @@ export default function App() {
           </div>
         )}
 
-        {tab === 'diagram' && (
+        {(tab as string) === 'diagram' && (
           <div style={{ height: 'calc(100vh - 180px)' }}>
             <SystemDiagram />
           </div>
         )}
 
-        {tab === 'playground' && (
-          <ApiPlayground onRequestSent={loadData} />
-        )}
-
+        {tab === 'playground' && <ApiPlayground onRequestSent={loadData} />}
         {tab === 'spec' && <ApiSpec />}
       </main>
     </div>

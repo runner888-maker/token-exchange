@@ -1,51 +1,44 @@
 from typing import Dict, Any
 
-# Static pricing tables (USD per 1M tokens, as of 2024)
+# Pricing as of 2025 (USD per 1M tokens)
 PROVIDER_MODELS: Dict[str, Dict[str, Any]] = {
-    "anthropic": {
-        "claude-3-5-haiku-20241022": {
-            "input_cost_per_1m": 0.80,
-            "output_cost_per_1m": 4.00,
-            "quality_score": 6,
+    "xai": {
+        "grok-3-mini-beta": {
+            "input_cost_per_1m": 0.30,
+            "output_cost_per_1m": 0.50,
+            "quality_score": 7,
             "latency_tier": "fast",
-            "display_name": "Claude 3.5 Haiku",
+            "display_name": "Grok 3 Mini",
         },
-        "claude-3-5-sonnet-20241022": {
+        "grok-3-beta": {
             "input_cost_per_1m": 3.00,
             "output_cost_per_1m": 15.00,
-            "quality_score": 9,
-            "latency_tier": "medium",
-            "display_name": "Claude 3.5 Sonnet",
-        },
-        "claude-3-opus-20240229": {
-            "input_cost_per_1m": 15.00,
-            "output_cost_per_1m": 75.00,
             "quality_score": 10,
-            "latency_tier": "slow",
-            "display_name": "Claude 3 Opus",
+            "latency_tier": "medium",
+            "display_name": "Grok 3",
+        },
+        "grok-2-1212": {
+            "input_cost_per_1m": 2.00,
+            "output_cost_per_1m": 10.00,
+            "quality_score": 8,
+            "latency_tier": "medium",
+            "display_name": "Grok 2",
         },
     },
-    "openai": {
-        "gpt-4o-mini": {
+    "gemini": {
+        "gemini-2.5-flash": {
             "input_cost_per_1m": 0.15,
             "output_cost_per_1m": 0.60,
-            "quality_score": 6,
+            "quality_score": 8,
             "latency_tier": "fast",
-            "display_name": "GPT-4o Mini",
+            "display_name": "Gemini 2.5 Flash",
         },
-        "gpt-4o": {
-            "input_cost_per_1m": 5.00,
-            "output_cost_per_1m": 15.00,
-            "quality_score": 9,
+        "gemini-2.5-pro": {
+            "input_cost_per_1m": 1.25,
+            "output_cost_per_1m": 10.00,
+            "quality_score": 10,
             "latency_tier": "medium",
-            "display_name": "GPT-4o",
-        },
-        "gpt-4-turbo": {
-            "input_cost_per_1m": 10.00,
-            "output_cost_per_1m": 30.00,
-            "quality_score": 9,
-            "latency_tier": "medium",
-            "display_name": "GPT-4 Turbo",
+            "display_name": "Gemini 2.5 Pro",
         },
     },
 }
@@ -53,9 +46,9 @@ PROVIDER_MODELS: Dict[str, Dict[str, Any]] = {
 # 1 credit = $0.0001  →  $1 = 10,000 credits
 CREDITS_PER_DOLLAR = 10_000
 
-# Baseline model used to compute savings (what you'd pay if always using Sonnet)
-BASELINE_PROVIDER = "anthropic"
-BASELINE_MODEL = "claude-3-5-sonnet-20241022"
+# Baseline for savings comparison: Gemini 1.5 Pro (mid-tier)
+BASELINE_PROVIDER = "gemini"
+BASELINE_MODEL = "gemini-1.5-pro"
 
 
 def calculate_cost(provider: str, model: str, input_tokens: int, output_tokens: int) -> float:
