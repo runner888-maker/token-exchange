@@ -15,14 +15,26 @@ import type { Stats, RequestLog as RequestLogType } from './types'
 // In development the Vite proxy handles /v1 and /v2 transparently.
 const API = import.meta.env.VITE_API_URL ?? ''
 
+// Render free tier spins down after inactivity — use a 45s timeout so the
+// wakeup request has time to complete rather than immediately showing an error.
+async function fetchWithTimeout(url: string, ms = 45_000): Promise<Response> {
+  const ctrl = new AbortController()
+  const id = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { signal: ctrl.signal })
+  } finally {
+    clearTimeout(id)
+  }
+}
+
 async function fetchStats(): Promise<Stats> {
-  const res = await fetch(`${API}/v1/stats`)
+  const res = await fetchWithTimeout(`${API}/v1/stats`)
   if (!res.ok) throw new Error('Failed to fetch stats')
   return res.json()
 }
 
 async function fetchRequests(): Promise<RequestLogType[]> {
-  const res = await fetch(`${API}/v1/requests?limit=50`)
+  const res = await fetchWithTimeout(`${API}/v1/requests?limit=50`)
   if (!res.ok) throw new Error('Failed to fetch requests')
   return res.json()
 }
@@ -75,9 +87,10 @@ export default function App() {
           <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-800/40 rounded-lg text-yellow-400 text-sm flex items-center gap-2">
             <span>⚠</span>
             <span>
-              Backend not reachable — start it with{' '}
-              <code className="font-mono text-yellow-300">uvicorn app.main:app --reload</code> in{' '}
-              <code className="font-mono text-yellow-300">backend/</code>
+              Backend is waking up — this can take up to 30s on first load.{' '}
+              <button onClick={loadData} className="underline hover:text-yellow-300 transition-colors">
+                Retry now
+              </button>
             </span>
           </div>
         )}
