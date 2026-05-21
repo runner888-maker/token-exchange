@@ -39,7 +39,7 @@ const nodes: NodeDef[] = [
     detail: {
       title: 'Client Application',
       description:
-        'Any application that wants to use AI inference. Instead of calling Anthropic or OpenAI directly, it sends all requests to the Token Exchange proxy endpoint.',
+        'Any application that wants to use AI inference. Instead of calling providers directly, it sends all requests to the Tokenmaxx proxy endpoint.',
       code: `POST http://localhost:8000/v1/completion
 {
   "prompt": "Explain quantum computing",

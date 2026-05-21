@@ -61,7 +61,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
             <ShoppingCart size={16} className="text-white" />
           </div>
           <div>
-            <h1 className="text-white font-semibold text-base leading-tight">Token Exchange</h1>
+            <h1 className="text-white font-semibold text-base leading-tight">Tokenmaxx</h1>
             <p className="text-gray-500 text-xs">The Costco of AI Tokens · v2</p>
           </div>
 

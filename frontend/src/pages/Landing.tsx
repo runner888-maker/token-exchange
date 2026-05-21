@@ -48,8 +48,7 @@ export default function Landing({ onNavigate }: LandingProps) {
           </div>
 
           <h1 className="text-5xl font-bold text-white mb-4 leading-tight">
-            The Costco of
-            <span className="text-brand-light"> AI Tokens</span>
+            <span className="text-brand-light">Tokenmaxx</span>
           </h1>
 
           <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">

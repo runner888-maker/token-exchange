@@ -87,7 +87,7 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Returns service status. Use this to confirm the server is running.',
     response: {
       status: '"ok"',
-      service: '"token-exchange"',
+      service: '"tokenmaxx"',
       version: '"0.1.0"',
     },
   },
@@ -105,7 +105,7 @@ export default function ApiSpec() {
     <div className="space-y-3">
       <div className="flex items-center gap-3 mb-6">
         <div>
-          <h2 className="text-base font-semibold text-white">Token Exchange API</h2>
+          <h2 className="text-base font-semibold text-white">Tokenmaxx API</h2>
           <p className="text-sm text-gray-500 mt-0.5">
             Base URL: <code className="font-mono text-brand-light">http://localhost:8000</code>
             &nbsp;·&nbsp; Version 0.1.0
