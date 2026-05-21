@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 const isProd = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
-  base: isProd ? '/token-exchange/' : '/',
+  base: isProd ? '/tokenmaxx/' : '/',
   plugins: [react()],
   server: {
     proxy: {
